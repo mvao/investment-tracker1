@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Investment Tracker — Brazil & USA</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>body{ -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; }</style>
+</head>
+<body class="bg-white text-slate-800">
+  <div class="max-w-4xl mx-auto p-6">
+    <header class="mb-6">
+      <h1 class="text-2xl font-semibold">Investment Tracker</h1>
+      <p class="text-sm text-slate-500">Enter monthly values (month + year). Data saved locally (LocalStorage). Currency: R$ (Brazilian Real).</p>
+    </header>
+
+    <!-- Form -->
+    <section class="bg-white border rounded-lg p-4 shadow-sm mb-6">
+      <form id="entryForm" class="grid grid-cols-1 sm:grid-cols-6 gap-3 items-end">
+        <div class="sm:col-span-2">
+          <label class="text-xs text-slate-600">Month & Year</label>
+          <input id="date" type="month" required class="mt-1 block w-full border rounded p-2 text-sm" />
+        </div>
+        <div class="sm:col-span-2">
+          <label class="text-xs text-slate-600">Amount (R$)</label>
+          <input id="amount" type="number" step="0.01" min="0" placeholder="0.00" required class="mt-1 block w-full border rounded p-2 text-sm" />
+        </div>
+        <div class="sm:col-span-1">
+          <label class="text-xs text-slate-600">Category</label>
+          <select id="category" required class="mt-1 block w-full border rounded p-2 text-sm">
+            <option value="Brazil">Brazil</option>
+            <option value="USA">USA</option>
+          </select>
+        </div>
+        <div class="sm:col-span-1">
+          <button type="submit" class="w-full px-4 py-2 bg-slate-800 text-white rounded">Add</button>
+        </div>
+
+        <div class="sm:col-span-6 mt-2 flex gap-2">
+          <button type="button" id="clearAll" class="px-4 py-2 border rounded text-sm">Clear all</button>
+          <button type="button" id="exportBtn" class="px-4 py-2 border rounded text-sm">Export JSON</button>
+          <label class="px-4 py-2 border rounded text-sm cursor-pointer">
+            Import JSON
+            <input id="importFile" type="file" accept="application/json" class="hidden" />
+          </label>
+        </div>
+      </form>
+    </section>
+
+    <!-- Sections: Brazil & USA -->
+    <section id="brazilSection" class="mb-8 p-4 border rounded bg-white shadow-sm">
+      <h2 class="text-lg font-medium mb-3">🇧🇷 Brazil Inputs</h2>
+      <div class="overflow-x-auto mb-4">
+        <table class="w-full text-sm">
+          <thead class="text-slate-500">
+            <tr>
+              <th class="text-left py-2">Month</th>
+              <th class="text-left py-2">Year</th>
+              <th class="text-left py-2">Amount (R$)</th>
+              <th class="text-left py-2">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="brazilList" class="divide-y"></tbody>
+        </table>
+      </div>
+
+      <div id="brazilYearly" class="mb-2"></div>
+      <div id="brazilTotal" class="text-sm text-slate-600"></div>
+    </section>
+
+    <section id="usaSection" class="mb-8 p-4 border rounded bg-white shadow-sm">
+      <h2 class="text-lg font-medium mb-3">🇺🇸 USA Inputs (also in R$)</h2>
+      <div class="overflow-x-auto mb-4">
+        <table class="w-full text-sm">
+          <thead class="text-slate-500">
+            <tr>
+              <th class="text-left py-2">Month</th>
+              <th class="text-left py-2">Year</th>
+              <th class="text-left py-2">Amount (R$)</th>
+              <th class="text-left py-2">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="usaList" class="divide-y"></tbody>
+        </table>
+      </div>
+
+      <div id="usaYearly" class="mb-2"></div>
+      <div id="usaTotal" class="text-sm text-slate-600"></div>
+    </section>
+
+    <footer class="text-xs text-slate-400">Saved locally · Export/Import available</footer>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'investment_tracker_brz_us_v1';
+
+    // Use Brazilian Real formatting for display
+    const currencyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+    const monthFormatter = new Intl.DateTimeFormat('pt-BR', { month: 'short' });
+
+    function loadEntries() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : [];
+      } catch (e) {
+        console.error('Failed to parse storage', e);
+        return [];
+      }
+    }
+
+    function saveEntries(list) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    }
+
+    function parseMonthYear(value) {
+      // value format: "YYYY-MM"
+      const [y, m] = value.split('-').map(Number);
+      return { year: y, month: m };
+    }
+
+    function formatMonthDisplay(value) {
+      const { year, month } = parseMonthYear(value);
+      const d = new Date(year, month - 1, 1);
+      const monthName = monthFormatter.format(d); // e.g. 'jan.'
+      return `${monthName.replace('.', '')}`;
+    }
+
+    function render() {
+      const entries = loadEntries().slice().sort((a,b) => (a.date === b.date) ? b.amount - a.amount : (b.date.localeCompare(a.date)));
+
+      // Separate lists
+      const brazil = entries.filter(e => e.category === 'Brazil');
+      const usa = entries.filter(e => e.category === 'USA');
+
+      renderTable('brazilList', brazil);
+      renderTable('usaList', usa);
+
+      renderSummary('brazilYearly', 'brazilTotal', brazil);
+      renderSummary('usaYearly', 'usaTotal', usa);
+
+      attachDeleteHandlers();
+    }
+
+    function renderTable(tbodyId, list) {
+      const tbody = document.getElementById(tbodyId);
+      tbody.innerHTML = '';
+      if (list.length === 0) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td colspan="4" class="py-3 text-slate-500 text-sm">No entries</td>`;
+        tbody.appendChild(tr);
+        return;
+      }
+
+      list.forEach((e, idx) => {
+        const { year, month } = parseMonthYear(e.date);
+        const d = new Date(year, month - 1, 1);
+        const monthName = monthFormatter.format(d).replace('.', '');
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="py-2">${monthName}</td>
+          <td class="py-2">${year}</td>
+          <td class="py-2">${currencyFormatter.format(Number(e.amount))}</td>
+          <td class="py-2"><button data-id="${e.id}" class="remove text-xs text-red-500">Delete</button></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderSummary(containerId, totalId, list) {
+      const container = document.getElementById(containerId);
+      const totalEl = document.getElementById(totalId);
+      container.innerHTML = '';
+
+      if (list.length === 0) {
+        totalEl.textContent = 'Grand total: R$ 0,00';
+        return;
+      }
+
+      // Aggregate by year
+      const byYear = {};
+      let grand = 0;
+      list.forEach(e => {
+        const y = parseMonthYear(e.date).year;
+        byYear[y] = (byYear[y] || 0) + Number(e.amount);
+        grand += Number(e.amount);
+      });
+
+      // Yearly table
+      const table = document.createElement('table');
+      table.className = 'text-sm w-full mb-2';
+      table.innerHTML = `<thead class="text-slate-500"><tr><th class="text-left py-1">Year</th><th class="text-left py-1">Total (R$)</th></tr></thead>`;
+      const tb = document.createElement('tbody');
+      Object.keys(byYear).sort((a,b) => b - a).forEach(year => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td class="py-1">${year}</td><td class="py-1 font-medium">${currencyFormatter.format(byYear[year])}</td>`;
+        tb.appendChild(tr);
+      });
+      table.appendChild(tb);
+      container.appendChild(table);
+
+      totalEl.textContent = `Grand total: ${currencyFormatter.format(grand)}`;
+    }
+
+    function attachDeleteHandlers() {
+      document.querySelectorAll('.remove').forEach(btn => {
+        btn.addEventListener('click', (ev) => {
+          const id = ev.target.dataset.id;
+          if (!confirm('Delete this entry?')) return;
+          const list = loadEntries();
+          const idx = list.findIndex(i => i.id === id);
+          if (idx > -1) {
+            list.splice(idx, 1);
+            saveEntries(list);
+            render();
+          }
+        });
+      });
+    }
+
+    // Form submit
+    document.getElementById('entryForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const date = document.getElementById('date').value; // YYYY-MM
+      const amount = document.getElementById('amount').value;
+      const category = document.getElementById('category').value;
+      if (!date || !amount) return alert('Please provide month and amount');
+
+      const list = loadEntries();
+      const entry = { id: crypto.randomUUID(), date, amount: Number(Number(amount).toFixed(2)), category };
+      list.push(entry);
+      saveEntries(list);
+
+      // reset amount but keep date for convenience
+      document.getElementById('amount').value = '';
+      render();
+    });
+
+    // Clear all
+    document.getElementById('clearAll').addEventListener('click', () => {
+      if (!confirm('Delete ALL entries? This cannot be undone unless you exported a backup.')) return;
+      localStorage.removeItem(STORAGE_KEY);
+      render();
+    });
+
+    // Export
+    document.getElementById('exportBtn').addEventListener('click', () => {
+      const data = loadEntries();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'investment-backup.json';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    });
+
+    // Import
+    document.getElementById('importFile').addEventListener('change', (ev) => {
+      const file = ev.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          if (!Array.isArray(parsed)) throw new Error('Invalid file');
+          // basic validation & normalization
+          const cleaned = parsed.map(p => ({ id: p.id || crypto.randomUUID(), date: p.date, amount: Number(Number(p.amount).toFixed(2)), category: p.category || 'Brazil' }));
+          saveEntries(cleaned);
+          render();
+          alert('Import successful');
+        } catch (err) {
+          alert('Failed to import: ' + err.message);
+        }
+      };
+      reader.readAsText(file);
+      ev.target.value = null;
+    });
+
+    // Init
+    (function init(){
+      // set default month to current month
+      const today = new Date();
+      const mm = String(today.getMonth() + 1).padStart(2,'0');
+      const yyyy = today.getFullYear();
+      document.getElementById('date').value = `${yyyy}-${mm}`;
+      render();
+    })();
+  </script>
+</body>
+</html>

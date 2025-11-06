@@ -3,291 +3,246 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Investment Tracker — Brazil & USA</title>
+  <title>Investment Tracker — Dark Neon</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <style>body{ -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; }</style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root{
+      --bg:#070707; --panel:#0f1720; --muted:#94a3b8; --neon:#00ff88; --neon-2:#00d1ff; --neon-3:#c084fc;
+    }
+    body{background:var(--bg); color:#e6eef8; font-family:Inter,ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial}
+    .neon{box-shadow:0 0 10px rgba(0,255,136,0.08),0 0 22px rgba(0,255,136,0.04); border:1px solid rgba(0,255,136,0.12)}
+    .glow{filter:drop-shadow(0 0 8px rgba(0,255,136,0.22))}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border:1px solid rgba(255,255,255,0.04)}
+    .summary-pill{background:rgba(255,255,255,0.02); padding:.25rem .5rem; border-radius:999px; font-size:.85rem}
+    table td, table th{border-bottom:1px dashed rgba(255,255,255,0.02)}
+    details summary{list-style:none; cursor:pointer}
+    details[open] summary .chev{transform:rotate(90deg)}
+  </style>
 </head>
-<body class="bg-white text-slate-800">
-  <div class="max-w-4xl mx-auto p-6">
+<body>
+  <div class="max-w-5xl mx-auto p-6">
     <header class="mb-6">
-      <h1 class="text-2xl font-semibold">Investment Tracker</h1>
-      <p class="text-sm text-slate-500">Enter monthly values (month + year). Data saved locally (LocalStorage). Currency: R$ (Brazilian Real).</p>
+      <h1 class="text-2xl font-semibold text-white">Investment Tracker</h1>
+      <p class="text-sm text-slate-400">Dark neon theme · LocalStorage · Expand year rows to view inputs</p>
     </header>
 
-    <!-- Form -->
-    <section class="bg-white border rounded-lg p-4 shadow-sm mb-6">
-      <form id="entryForm" class="grid grid-cols-1 sm:grid-cols-6 gap-3 items-end">
-        <div class="sm:col-span-2">
-          <label class="text-xs text-slate-600">Month & Year</label>
-          <input id="date" type="month" required class="mt-1 block w-full border rounded p-2 text-sm" />
-        </div>
-        <div class="sm:col-span-2">
-          <label class="text-xs text-slate-600">Amount (R$)</label>
-          <input id="amount" type="number" step="0.01" min="0" placeholder="0.00" required class="mt-1 block w-full border rounded p-2 text-sm" />
-        </div>
-        <div class="sm:col-span-1">
-          <label class="text-xs text-slate-600">Category</label>
-          <select id="category" required class="mt-1 block w-full border rounded p-2 text-sm">
-            <option value="Brazil">Brazil</option>
-            <option value="USA">USA</option>
-          </select>
-        </div>
-        <div class="sm:col-span-1">
-          <button type="submit" class="w-full px-4 py-2 bg-slate-800 text-white rounded">Add</button>
+    <!-- Top: Input + chart -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+      <form id="entryForm" class="lg:col-span-1 p-4 card rounded-lg neon">
+        <h2 class="text-lg font-medium mb-3 glow" style="color:var(--neon)">Add entry</h2>
+        <label class="text-xs text-slate-400">Month & Year</label>
+        <input id="date" type="month" required class="mt-1 block w-full rounded p-2 bg-transparent border border-white/5 text-white text-sm" />
+
+        <label class="text-xs text-slate-400 mt-3">Amount (R$)</label>
+        <input id="amount" type="number" step="0.01" min="0" placeholder="0.00" required class="mt-1 block w-full rounded p-2 bg-transparent border border-white/5 text-white text-sm" />
+
+        <label class="text-xs text-slate-400 mt-3">Category</label>
+        <select id="category" class="mt-1 block w-full rounded p-2 bg-transparent border border-white/5 text-white text-sm">
+          <option value="Brazil">Brazil</option>
+          <option value="USA">USA</option>
+          <option value="Crypto">Crypto</option>
+        </select>
+
+        <div class="mt-4 flex gap-2">
+          <button type="submit" class="px-4 py-2 rounded bg-gradient-to-r from-green-400 to-green-300 text-black font-semibold">Add</button>
+          <button type="button" id="clearAll" class="px-3 py-2 rounded border text-sm text-slate-200">Clear all</button>
         </div>
 
-        <div class="sm:col-span-6 mt-2 flex gap-2">
-          <button type="button" id="clearAll" class="px-4 py-2 border rounded text-sm">Clear all</button>
-          <button type="button" id="exportBtn" class="px-4 py-2 border rounded text-sm">Export JSON</button>
-          <label class="px-4 py-2 border rounded text-sm cursor-pointer">
-            Import JSON
-            <input id="importFile" type="file" accept="application/json" class="hidden" />
-          </label>
+        <div class="mt-3 flex gap-2 text-xs">
+          <button type="button" id="exportBtn" class="px-3 py-2 rounded border">Export JSON</button>
+          <label class="px-3 py-2 rounded border cursor-pointer">Import JSON <input id="importFile" type="file" accept="application/json" class="hidden"/></label>
         </div>
+
+        <p class="mt-3 text-xs text-slate-400">Entries are saved in your browser. Use export to backup.</p>
       </form>
-    </section>
 
-    <!-- Sections: Brazil & USA -->
-    <section id="brazilSection" class="mb-8 p-4 border rounded bg-white shadow-sm">
-      <h2 class="text-lg font-medium mb-3">🇧🇷 Brazil Inputs</h2>
-      <div class="overflow-x-auto mb-4">
-        <table class="w-full text-sm">
-          <thead class="text-slate-500">
-            <tr>
-              <th class="text-left py-2">Month</th>
-              <th class="text-left py-2">Year</th>
-              <th class="text-left py-2">Amount (R$)</th>
-              <th class="text-left py-2">Actions</th>
-            </tr>
-          </thead>
-          <tbody id="brazilList" class="divide-y"></tbody>
-        </table>
+      <div class="lg:col-span-2 p-4 card rounded-lg neon">
+        <h2 class="text-lg font-medium mb-3 glow" style="color:var(--neon-2)">Invested over time</h2>
+        <canvas id="lineChart" height="150"></canvas>
+        <p class="mt-2 text-xs text-slate-400">Line chart shows cumulative invested value per category over time.</p>
       </div>
+    </div>
 
-      <div id="brazilYearly" class="mb-2"></div>
-      <div id="brazilTotal" class="text-sm text-slate-600"></div>
-    </section>
+    <!-- Sections per category -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <section id="section-Brazil" class="card p-4 rounded-lg neon">
+        <h3 class="font-medium text-white mb-2 glow" style="color:var(--neon)">🇧🇷 Brazil</h3>
+        <div id="brazilSummary" class="text-sm text-slate-300"></div>
+        <div id="brazilYears" class="mt-3"></div>
+      </section>
 
-    <section id="usaSection" class="mb-8 p-4 border rounded bg-white shadow-sm">
-      <h2 class="text-lg font-medium mb-3">🇺🇸 USA Inputs (also in R$)</h2>
-      <div class="overflow-x-auto mb-4">
-        <table class="w-full text-sm">
-          <thead class="text-slate-500">
-            <tr>
-              <th class="text-left py-2">Month</th>
-              <th class="text-left py-2">Year</th>
-              <th class="text-left py-2">Amount (R$)</th>
-              <th class="text-left py-2">Actions</th>
-            </tr>
-          </thead>
-          <tbody id="usaList" class="divide-y"></tbody>
-        </table>
-      </div>
+      <section id="section-USA" class="card p-4 rounded-lg neon">
+        <h3 class="font-medium text-white mb-2 glow" style="color:var(--neon-2)">🇺🇸 USA</h3>
+        <div id="usaSummary" class="text-sm text-slate-300"></div>
+        <div id="usaYears" class="mt-3"></div>
+      </section>
 
-      <div id="usaYearly" class="mb-2"></div>
-      <div id="usaTotal" class="text-sm text-slate-600"></div>
-    </section>
+      <section id="section-Crypto" class="card p-4 rounded-lg neon">
+        <h3 class="font-medium text-white mb-2 glow" style="color:var(--neon-3)">🪙 Crypto</h3>
+        <div id="cryptoSummary" class="text-sm text-slate-300"></div>
+        <div id="cryptoYears" class="mt-3"></div>
+      </section>
+    </div>
 
-    <footer class="text-xs text-slate-400">Saved locally · Export/Import available</footer>
+    <footer class="mt-6 text-xs text-slate-500">Saved locally · Expand a year to see the inputs for that year</footer>
   </div>
 
   <script>
-    const STORAGE_KEY = 'investment_tracker_brz_us_v1';
-
-    // Use Brazilian Real formatting for display
+    const STORAGE_KEY = 'investment_tracker_dark_v2';
     const currencyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
     const monthFormatter = new Intl.DateTimeFormat('pt-BR', { month: 'short' });
 
-    function loadEntries() {
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        return raw ? JSON.parse(raw) : [];
-      } catch (e) {
-        console.error('Failed to parse storage', e);
-        return [];
-      }
+    // Chart setup
+    let chart;
+    function createChart(ctx) {
+      const cfg = {
+        type: 'line',
+        data: { labels: [], datasets: [] },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: { legend: { labels: { color: '#cbd5e1' } } },
+          scales: {
+            x: { ticks: { color: '#9ca3af' }, grid: { color: 'rgba(255,255,255,0.03)' } },
+            y: { ticks: { color: '#9ca3af' }, grid: { color: 'rgba(255,255,255,0.03)' } }
+          }
+        }
+      };
+      chart = new Chart(ctx, cfg);
     }
 
-    function saveEntries(list) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
-    }
+    // Storage helpers
+    function loadEntries(){ try{ const raw = localStorage.getItem(STORAGE_KEY); return raw? JSON.parse(raw): []; } catch(e){ console.error(e); return []; }}
+    function saveEntries(list){ localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); }
 
-    function parseMonthYear(value) {
-      // value format: "YYYY-MM"
-      const [y, m] = value.split('-').map(Number);
-      return { year: y, month: m };
-    }
+    // Utilities
+    function parseMonthYear(v){ const [y,m]=v.split('-').map(Number); return {year:y, month:m}; }
+    function displayMonth(v){ const {year,month}=parseMonthYear(v); const d=new Date(year,month-1,1); return `${monthFormatter.format(d).replace('.','')} ${year}`; }
 
-    function formatMonthDisplay(value) {
-      const { year, month } = parseMonthYear(value);
-      const d = new Date(year, month - 1, 1);
-      const monthName = monthFormatter.format(d); // e.g. 'jan.'
-      return `${monthName.replace('.', '')}`;
-    }
-
-    function render() {
-      const entries = loadEntries().slice().sort((a,b) => (a.date === b.date) ? b.amount - a.amount : (b.date.localeCompare(a.date)));
-
-      // Separate lists
-      const brazil = entries.filter(e => e.category === 'Brazil');
-      const usa = entries.filter(e => e.category === 'USA');
-
-      renderTable('brazilList', brazil);
-      renderTable('usaList', usa);
-
-      renderSummary('brazilYearly', 'brazilTotal', brazil);
-      renderSummary('usaYearly', 'usaTotal', usa);
-
+    // Render functions
+    function renderAll(){
+      const entries = loadEntries().slice().sort((a,b)=> a.date.localeCompare(b.date)); // asc
+      renderSections(entries);
+      renderChart(entries);
       attachDeleteHandlers();
     }
 
-    function renderTable(tbodyId, list) {
-      const tbody = document.getElementById(tbodyId);
-      tbody.innerHTML = '';
-      if (list.length === 0) {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td colspan="4" class="py-3 text-slate-500 text-sm">No entries</td>`;
-        tbody.appendChild(tr);
-        return;
-      }
+    function groupByCategory(entries){ const map = {Brazil:[], USA:[], Crypto:[]}; entries.forEach(e=>{ if(!map[e.category]) map[e.category]=[]; map[e.category].push(e); }); return map; }
 
-      list.forEach((e, idx) => {
-        const { year, month } = parseMonthYear(e.date);
-        const d = new Date(year, month - 1, 1);
-        const monthName = monthFormatter.format(d).replace('.', '');
+    function aggregateByYear(list){ const byYear={}; let grand=0; list.forEach(e=>{ const y=parseMonthYear(e.date).year; byYear[y]=(byYear[y]||0)+Number(e.amount); grand+=Number(e.amount); }); return {byYear, grand}; }
 
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td class="py-2">${monthName}</td>
-          <td class="py-2">${year}</td>
-          <td class="py-2">${currencyFormatter.format(Number(e.amount))}</td>
-          <td class="py-2"><button data-id="${e.id}" class="remove text-xs text-red-500">Delete</button></td>
+    function renderSections(entries){ const grouped=groupByCategory(entries);
+      // Brazil
+      renderCategory('Brazil', grouped['Brazil']||[], 'brazilSummary', 'brazilYears');
+      renderCategory('USA', grouped['USA']||[], 'usaSummary', 'usaYears');
+      renderCategory('Crypto', grouped['Crypto']||[], 'cryptoSummary', 'cryptoYears');
+    }
+
+    function renderCategory(catName, list, summaryId, yearsContainerId){
+      const summaryEl = document.getElementById(summaryId);
+      const yearsEl = document.getElementById(yearsContainerId);
+      const {byYear, grand} = aggregateByYear(list);
+      summaryEl.textContent = `Grand total: ${currencyFormatter.format(grand)}`;
+      yearsEl.innerHTML = '';
+      if(Object.keys(byYear).length===0){ yearsEl.innerHTML = `<div class="text-slate-400 text-sm">No data</div>`; return; }
+      // sort years desc
+      Object.keys(byYear).sort((a,b)=>b-a).forEach(year=>{
+        const total = byYear[year];
+        const details = document.createElement('details');
+        details.className = 'mb-2';
+        details.innerHTML = `
+          <summary class="flex justify-between items-center p-2 rounded hover:bg-white/2">
+            <div class="flex items-center gap-3">
+              <span class="chev">▶</span>
+              <div class="text-sm">${year}</div>
+            </div>
+            <div class="text-sm font-medium">${currencyFormatter.format(total)}</div>
+          </summary>
+          <div class="mt-2 text-sm bg-transparent p-2">
+            <table class="w-full">
+              <thead class="text-slate-400"><tr><th class="text-left py-1">Month</th><th class="text-left py-1">Amount</th><th class="text-left py-1">Action</th></tr></thead>
+              <tbody class="year-rows"></tbody>
+            </table>
+          </div>
         `;
-        tbody.appendChild(tr);
+        // fill rows for that year
+        const tbody = details.querySelector('.year-rows');
+        const rows = list.filter(e=>parseMonthYear(e.date).year==Number(year)).sort((a,b)=> a.date.localeCompare(b.date));
+        rows.forEach(r=>{
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td class="py-1">${displayMonth(r.date)}</td><td class="py-1">${currencyFormatter.format(Number(r.amount))}</td><td class="py-1"><button data-id="${r.id}" class="delete-row text-xs text-red-400">Delete</button></td>`;
+          tbody.appendChild(tr);
+        });
+        yearsEl.appendChild(details);
       });
     }
 
-    function renderSummary(containerId, totalId, list) {
-      const container = document.getElementById(containerId);
-      const totalEl = document.getElementById(totalId);
-      container.innerHTML = '';
-
-      if (list.length === 0) {
-        totalEl.textContent = 'Grand total: R$ 0,00';
-        return;
+    // Chart: cumulative per category over time (by month)
+    function renderChart(entries){
+      // Build sorted list of months
+      const monthsSet = new Set(entries.map(e=>e.date));
+      const months = Array.from(monthsSet).sort(); // YYYY-MM ascending
+      // Ensure months continuity: include missing months between min and max
+      if(months.length>0){
+        const [minY,minM] = months[0].split('-').map(Number);
+        const [maxY,maxM] = months[months.length-1].split('-').map(Number);
+        const full = [];
+        let y=minY,m=minM;
+        while(y<maxY || (y===maxY && m<=maxM)){
+          full.push(`${String(y).padStart(4,'0')}-${String(m).padStart(2,'0')}`);
+          m++; if(m>12){m=1; y++;}
+        }
+        months.splice(0, months.length, ...full);
       }
 
-      // Aggregate by year
-      const byYear = {};
-      let grand = 0;
-      list.forEach(e => {
-        const y = parseMonthYear(e.date).year;
-        byYear[y] = (byYear[y] || 0) + Number(e.amount);
-        grand += Number(e.amount);
+      // prepare cumulative sums
+      const cats = ['Brazil','USA','Crypto'];
+      const series = {Brazil:[], USA:[], Crypto:[]};
+      let accum = {Brazil:0, USA:0, Crypto:0};
+      months.forEach(mon=>{
+        // sum for that month
+        const forMonth = entries.filter(e=>e.date===mon);
+        forMonth.forEach(e=>{ accum[e.category] = (accum[e.category]||0) + Number(e.amount); });
+        cats.forEach(c=> series[c].push(Number((accum[c]||0).toFixed(2))));
       });
 
-      // Yearly table
-      const table = document.createElement('table');
-      table.className = 'text-sm w-full mb-2';
-      table.innerHTML = `<thead class="text-slate-500"><tr><th class="text-left py-1">Year</th><th class="text-left py-1">Total (R$)</th></tr></thead>`;
-      const tb = document.createElement('tbody');
-      Object.keys(byYear).sort((a,b) => b - a).forEach(year => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td class="py-1">${year}</td><td class="py-1 font-medium">${currencyFormatter.format(byYear[year])}</td>`;
-        tb.appendChild(tr);
-      });
-      table.appendChild(tb);
-      container.appendChild(table);
+      const labels = months.map(m=>{ const [y,mm]=m.split('-'); const d=new Date(Number(y), Number(mm)-1,1); return `${monthFormatter.format(d).replace('.','')} ${y}`; });
 
-      totalEl.textContent = `Grand total: ${currencyFormatter.format(grand)}`;
+      const datasets = [
+        { label: 'Brazil', data: series['Brazil'], borderColor: 'rgba(0,255,136,0.95)', backgroundColor: 'rgba(0,255,136,0.06)', tension:0.3, pointRadius:2 },
+        { label: 'USA', data: series['USA'], borderColor: 'rgba(0,209,255,0.95)', backgroundColor: 'rgba(0,209,255,0.06)', tension:0.3, pointRadius:2 },
+        { label: 'Crypto', data: series['Crypto'], borderColor: 'rgba(192,132,252,0.95)', backgroundColor: 'rgba(192,132,252,0.06)', tension:0.3, pointRadius:2 }
+      ];
+
+      if(!chart){ const ctx = document.getElementById('lineChart').getContext('2d'); createChart(ctx); }
+      chart.data.labels = labels;
+      chart.data.datasets = datasets;
+      chart.update();
     }
 
-    function attachDeleteHandlers() {
-      document.querySelectorAll('.remove').forEach(btn => {
-        btn.addEventListener('click', (ev) => {
-          const id = ev.target.dataset.id;
-          if (!confirm('Delete this entry?')) return;
-          const list = loadEntries();
-          const idx = list.findIndex(i => i.id === id);
-          if (idx > -1) {
-            list.splice(idx, 1);
-            saveEntries(list);
-            render();
-          }
-        });
-      });
-    }
+    // Delete handlers
+    function attachDeleteHandlers(){ document.querySelectorAll('.delete-row').forEach(btn=> btn.onclick = (ev)=>{ const id=ev.target.dataset.id; if(!confirm('Delete entry?')) return; const list=loadEntries(); const idx=list.findIndex(i=>i.id===id); if(idx>-1){ list.splice(idx,1); saveEntries(list); renderAll(); } } ); }
 
     // Form submit
-    document.getElementById('entryForm').addEventListener('submit', (e) => {
-      e.preventDefault();
-      const date = document.getElementById('date').value; // YYYY-MM
-      const amount = document.getElementById('amount').value;
-      const category = document.getElementById('category').value;
-      if (!date || !amount) return alert('Please provide month and amount');
-
-      const list = loadEntries();
-      const entry = { id: crypto.randomUUID(), date, amount: Number(Number(amount).toFixed(2)), category };
-      list.push(entry);
-      saveEntries(list);
-
-      // reset amount but keep date for convenience
-      document.getElementById('amount').value = '';
-      render();
+    document.getElementById('entryForm').addEventListener('submit', e=>{
+      e.preventDefault(); const date=document.getElementById('date').value; const amount=document.getElementById('amount').value; const category=document.getElementById('category').value; if(!date||!amount) return alert('Please fill month and amount');
+      const list=loadEntries(); list.push({ id: crypto.randomUUID(), date, amount: Number(Number(amount).toFixed(2)), category }); saveEntries(list); document.getElementById('amount').value=''; renderAll();
     });
 
     // Clear all
-    document.getElementById('clearAll').addEventListener('click', () => {
-      if (!confirm('Delete ALL entries? This cannot be undone unless you exported a backup.')) return;
-      localStorage.removeItem(STORAGE_KEY);
-      render();
-    });
+    document.getElementById('clearAll').addEventListener('click', ()=>{ if(!confirm('Delete ALL entries?')) return; localStorage.removeItem(STORAGE_KEY); renderAll(); });
 
     // Export
-    document.getElementById('exportBtn').addEventListener('click', () => {
-      const data = loadEntries();
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'investment-backup.json';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    });
+    document.getElementById('exportBtn').addEventListener('click', ()=>{ const data=loadEntries(); const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='investment-backup.json'; a.click(); URL.revokeObjectURL(url); });
 
     // Import
-    document.getElementById('importFile').addEventListener('change', (ev) => {
-      const file = ev.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const parsed = JSON.parse(e.target.result);
-          if (!Array.isArray(parsed)) throw new Error('Invalid file');
-          // basic validation & normalization
-          const cleaned = parsed.map(p => ({ id: p.id || crypto.randomUUID(), date: p.date, amount: Number(Number(p.amount).toFixed(2)), category: p.category || 'Brazil' }));
-          saveEntries(cleaned);
-          render();
-          alert('Import successful');
-        } catch (err) {
-          alert('Failed to import: ' + err.message);
-        }
-      };
-      reader.readAsText(file);
-      ev.target.value = null;
-    });
+    document.getElementById('importFile').addEventListener('change', ev=>{
+      const file=ev.target.files[0]; if(!file) return; const reader=new FileReader(); reader.onload=(e)=>{ try{ const parsed=JSON.parse(e.target.result); if(!Array.isArray(parsed)) throw new Error('Invalid'); const cleaned=parsed.map(p=>({ id: p.id||crypto.randomUUID(), date:p.date, amount: Number(Number(p.amount).toFixed(2)), category: p.category||'Brazil' })); saveEntries(cleaned); renderAll(); alert('Import successful'); }catch(err){ alert('Import failed: '+err.message); } }; reader.readAsText(file); ev.target.value=null; });
 
     // Init
-    (function init(){
-      // set default month to current month
-      const today = new Date();
-      const mm = String(today.getMonth() + 1).padStart(2,'0');
-      const yyyy = today.getFullYear();
-      document.getElementById('date').value = `${yyyy}-${mm}`;
-      render();
-    })();
+    (function init(){ const today=new Date(); const mm=String(today.getMonth()+1).padStart(2,'0'); const yyyy=today.getFullYear(); document.getElementById('date').value=`${yyyy}-${mm}`; createChart(document.getElementById('lineChart').getContext('2d')); renderAll(); })();
   </script>
 </body>
 </html>

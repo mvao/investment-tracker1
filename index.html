@@ -57,7 +57,7 @@
       backdrop-filter: blur(8px);
       color: var(--accent);
       border: 1px solid rgba(0, 188, 212, 0.2); /* Accent color border */
-      box-shadow: 0 6px 20px rgba(0, 188, 212, 0.08);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
     }
     table { width: 100%; border-collapse: collapse; }
     th, td { padding: .5rem .75rem; text-align: left; font-size: .9rem; border-bottom: 1px solid rgba(255,255,255,0.02); }
@@ -142,8 +142,9 @@
       </form>
 
       <div class="lg:col-span-2 p-5 card">
-        <div class="flex items-center justify-between mb-3">
-          <h2 class="text-xl font-semibold text-white">Cumulative Growth</h2>
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3">
+          <h2 class="text-xl font-semibold text-white mb-2 sm:mb-0">Cumulative Growth</h2>
+          <div class="text-lg font-medium text-white-700">Total Invested: <span id="totalInvestedAmount" class="font-semibold text-accent">R$ 0,00</span></div>
         </div>
         <div style="height:380px;"><canvas id="cumChart"></canvas></div>
       </div>
@@ -210,6 +211,11 @@
     function aggregateByYear(list){ const byYear={}; let grand=0; list.forEach(e=>{ const p=parseMonthYear(e.date); if(!p) return; byYear[p.year] = (byYear[p.year]||0) + Number(e.amount); grand += Number(e.amount); }); return {byYear,grand}; }
 
     function renderCategory(cat, list, summaryId, yearsId){ const out = document.getElementById(summaryId); const yearsEl = document.getElementById(yearsId); const {byYear, grand} = aggregateByYear(list); out.textContent = 'Grand total: ' + new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(grand); yearsEl.innerHTML=''; if(Object.keys(byYear).length===0){ yearsEl.innerHTML='<div class="muted small">No data</div>'; return;} Object.keys(byYear).sort((a,b)=>b-a).forEach(y=>{ const total=byYear[y]; const det=document.createElement('details'); det.className='mb-2'; det.innerHTML = `<summary class='flex justify-between items-center p-2 rounded hover:bg-white/5'><div class='flex items-center gap-3'><span class='chev'>▶</span><div class='small'>${y}</div></div><div class='small font-medium'>${new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(total)}</div></summary><div class='mt-2 text-sm'><table><thead class='muted small'><tr><th>Month</th><th>Amount</th><th>Action</th></tr></thead><tbody class='year-rows'></tbody></table></div>`; const tbody = det.querySelector('.year-rows'); const rows = list.filter(e=>parseMonthYear(e.date).year==Number(y)).sort((a,b)=>a.date.localeCompare(b.date)); rows.forEach(r=>{ const tr = document.createElement('tr'); tr.innerHTML=`<td class='py-1'>${displayMonth(r.date)}</td><td class='py-1'>${new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(r.amount))}</td><td class='py-1'><button data-id='${r.id}' class='delete-row small' style='color:#ef4444'>Delete</button></td>`; tbody.appendChild(tr); }); yearsEl.appendChild(det); }); }
+
+    function updateTotalInvested(entries) {
+      const totalAmount = entries.reduce((sum, entry) => sum + Number(entry.amount), 0);
+      document.getElementById('totalInvestedAmount').textContent = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalAmount);
+    }
 
     // === CHARTS ===
     let cumChart; // Only one chart now
@@ -298,7 +304,16 @@
     // === ACTIONS ===
     function attachDeleteHandlers(){ document.querySelectorAll('.delete-row').forEach(btn=> btn.onclick = ev=>{ const id = ev.target.dataset.id; if(!confirm('Delete entry?')) return; const arr = loadEntries(); const idx = arr.findIndex(i=>i.id===id); if(idx>-1){ arr.splice(idx,1); saveEntries(arr); renderAll(); } }); }
 
-    function renderAll(){ const entries = loadEntries().filter(e=>parseMonthYear(e.date)); const grouped = groupByCategory(entries); renderCategory('Brazil', grouped['Brazil'], 'brazilSummary','brazilYears'); renderCategory('USA', grouped['USA'], 'usaSummary','usaYears'); renderCategory('Crypto', grouped['Crypto'],'cryptoSummary','cryptoYears'); renderCharts(entries); attachDeleteHandlers(); }
+    function renderAll(){
+      const entries = loadEntries().filter(e=>parseMonthYear(e.date));
+      const grouped = groupByCategory(entries);
+      renderCategory('Brazil', grouped['Brazil'], 'brazilSummary','brazilYears');
+      renderCategory('USA', grouped['USA'], 'usaSummary','usaYears');
+      renderCategory('Crypto', grouped['Crypto'],'cryptoSummary','cryptoYears');
+      renderCharts(entries);
+      updateTotalInvested(entries); // Update the total invested amount
+      attachDeleteHandlers();
+    }
 
     // === FORM HANDLERS ===
     document.getElementById('entryForm').addEventListener('submit', e=>{ e.preventDefault(); const date = document.getElementById('date').value; const amount = document.getElementById('amount').value; const category = document.getElementById('category').value; if(!parseMonthYear(date) || !amount) return showNotice('Please select month and enter amount'); const arr = loadEntries(); arr.push({id:crypto.randomUUID(), date, amount: Number(Number(amount).toFixed(2)), category}); saveEntries(arr); document.getElementById('amount').value=''; renderAll(); showNotice('Saved ✓',1200); });

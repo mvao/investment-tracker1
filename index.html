@@ -30,7 +30,6 @@
       border-radius: 10px; /* Slightly softer corners */
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2); /* Subtle shadow */
     }
-    /* Removed .neon and .glow as they contribute to the "neon" aesthetic */
     details summary { list-style: none; cursor: pointer; }
     details[open] summary .chev { transform: rotate(90deg); }
     label { display: block; }
@@ -45,6 +44,12 @@
       font-size: .95rem;
     }
     select option { background: var(--panel); color: var(--text); }
+    /* Aumenta a altura do campo de categoria */
+    select#category {
+        padding-top: .7rem; /* Aumenta o padding superior */
+        padding-bottom: .7rem; /* Aumenta o padding inferior */
+        min-height: 40px; /* Garante uma altura mínima */
+    }
     .notice {
       position: fixed; left: 50%; transform: translateX(-50%); top: 18px; z-index: 9999;
       padding: .6rem 1rem; border-radius: 8px;
@@ -91,6 +96,16 @@
         filter: invert(1); /* Inverte a cor, tornando preto em branco */
         cursor: pointer;
     }
+
+    /* Cores das categorias baseadas nas bandeiras e títulos maiores */
+    .category-title {
+        font-size: 1.15rem; /* Um pouco maior */
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    #brazilTitle { color: #009739; /* Verde da bandeira do Brasil */ }
+    #usaTitle { color: #0A3161; /* Azul escuro da bandeira dos EUA */ }
+    #cryptoTitle { color: #8C52FF; /* Um roxo vibrante para Cripto */ }
   </style>
 </head>
 <body>
@@ -131,25 +146,24 @@
           <h2 class="text-xl font-semibold text-white">Cumulative Growth</h2>
         </div>
         <div style="height:380px;"><canvas id="cumChart"></canvas></div>
-        <!-- Removed Yearly totals chart -->
       </div>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
       <section class="card p-4">
-        <h3 class="small text-white mb-2">🇧🇷 Brazil</h3>
+        <h3 id="brazilTitle" class="category-title">🇧🇷 Brazil</h3>
         <div id="brazilSummary" class="muted small mt-1"></div>
         <div id="brazilYears" class="mt-3"></div>
       </section>
 
       <section class="card p-4">
-        <h3 class="small text-white mb-2">🇺🇸 USA</h3>
+        <h3 id="usaTitle" class="category-title">🇺🇸 USA</h3>
         <div id="usaSummary" class="muted small mt-1"></div>
         <div id="usaYears" class="mt-3"></div>
       </section>
 
       <section class="card p-4">
-        <h3 class="small text-white mb-2">🪙 Crypto</h3>
+        <h3 id="cryptoTitle" class="category-title">🪙 Crypto</h3>
         <div id="cryptoSummary" class="muted small mt-1"></div>
         <div id="cryptoYears" class="mt-3"></div>
       </section>
@@ -164,9 +178,9 @@
     const MAX_YEARS = 40; // safety
     const MAX_MONTHS = 240; // safety
     const chartColors = { /* New color palette for charts */
-      Brazil: 'rgba(0, 188, 212, 0.9)', /* Teal */
-      USA: 'rgba(255, 159, 64, 0.9)',  /* Orange */
-      Crypto: 'rgba(153, 102, 255, 0.9)' /* Purple */
+      Brazil: 'rgba(0, 188, 212, 0.9)', /* Teal - mantendo para o gráfico */
+      USA: 'rgba(255, 159, 64, 0.9)',  /* Orange - mantendo para o gráfico */
+      Crypto: 'rgba(153, 102, 255, 0.9)' /* Purple - mantendo para o gráfico */
     };
     const mutedTextColor = '#a0a0b0'; // From CSS var(--muted)
 
@@ -179,7 +193,13 @@
     function saveEntries(list){ try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); }catch(e){ console.error('save failed', e); showNotice('Save failed'); }}
 
     function parseMonthYear(v){ if(!v || typeof v!=='string') return null; if(!/^[0-9]{4}-[0-9]{2}$/.test(v)) return null; const [y,m]=v.split('-').map(Number); if(isNaN(y)||isNaN(m)||m<1||m>12) return null; return {year:y,month:m}; }
-    function displayMonth(v){ const p=parseMonthYear(v); if(!p) return v; return new Intl.DateTimeFormat('en-US',{month:'short'}).format(new Date(p.year,p.month-1,1)) + ' ' + p.year; }
+    function displayMonth(v){
+      const p=parseMonthYear(v);
+      if(!p) return v;
+      // Formata o mês com a primeira letra em maiúscula
+      const monthName = new Intl.DateTimeFormat('en-US',{month:'long'}).format(new Date(p.year,p.month-1,1));
+      return monthName.charAt(0).toUpperCase() + monthName.slice(1) + ' ' + p.year;
+    }
 
     function validateDataset(arr){ if(!Array.isArray(arr)) return {valid:false}; const cleaned=[]; for(const it of arr){ if(!it || typeof it!=='object') return {valid:false}; const {date, amount, category, id} = it; if(!parseMonthYear(date)) return {valid:false}; const n=Number(amount); if(!isFinite(n)) return {valid:false}; cleaned.push({id: id||crypto.randomUUID(), date, amount: Number(Number(n).toFixed(2)), category: category||'Brazil'}); } return {valid:true, list:cleaned}; }
 

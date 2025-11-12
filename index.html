@@ -81,6 +81,16 @@
         background: linear-gradient(90deg, #4dd0e1, #80deea);
     }
     .container { max-width: 1200px; margin: 22px auto; padding: 18px; }
+
+    /* Estilo para mudar a cor do ícone do calendário */
+    input[type="month"]::-webkit-calendar-picker-indicator {
+        filter: invert(1); /* Inverte a cor, tornando preto em branco */
+        cursor: pointer;
+    }
+    input[type="month"]::-moz-calendar-picker-indicator {
+        filter: invert(1); /* Inverte a cor, tornando preto em branco */
+        cursor: pointer;
+    }
   </style>
 </head>
 <body>
